@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Film {
+    private static final LocalDate MOVIE_BIRTHDAY = LocalDate.of(1895, 12, 28);
 
     private Long id;
 
@@ -27,7 +28,6 @@ public class Film {
     private Long duration;
 
     public boolean validDate() {
-        LocalDate movieBirthday = LocalDate.of(1895, 12, 28);
-        return this.releaseDate.isAfter(movieBirthday);
+        return this.releaseDate.isAfter(MOVIE_BIRTHDAY);
     }
 }

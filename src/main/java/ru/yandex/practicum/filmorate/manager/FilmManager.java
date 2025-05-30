@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.manager;
 
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -16,7 +15,7 @@ public class FilmManager {
     private long filmId = 0;
 
 
-    public Film create(@Valid Film film) {
+    public Film create(Film film) {
         if (!film.validDate()) {
             log.error("Дата создания фильма {} не может быть раньше 28.12.1895.", film.getReleaseDate());
             throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
@@ -32,7 +31,7 @@ public class FilmManager {
         return film;
     }
 
-    public Film update(@Valid Film newFilm) {
+    public Film update(Film newFilm) {
         if (newFilm.getId() == null) {
             log.error("Поле с Id фильма не должно быть пустым.");
             throw new ValidationException("Id должен быть указан.");

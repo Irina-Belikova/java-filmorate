@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.manager;
 
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
@@ -15,7 +14,7 @@ public class UserManager {
     private final Map<Long, User> users = new HashMap<>();
     private long userId = 0;
 
-    public User create(@Valid User user) {
+    public User create(User user) {
         user.validName();
         log.info("Имя пользователя {} после валидации.", user.getName());
         user.setId(++userId);
@@ -28,7 +27,7 @@ public class UserManager {
         return user;
     }
 
-    public User update(@Valid User newUser) {
+    public User update(User newUser) {
         if (newUser.getId() == null) {
             log.error("Поле с Id пользователя не должно быть пустым.");
             throw new ValidationException("Id должен быть указан.");
