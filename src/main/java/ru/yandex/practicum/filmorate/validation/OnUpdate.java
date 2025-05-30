@@ -1,4 +1,4 @@
 package ru.yandex.practicum.filmorate.validation;
 
-public class OnUpdate {
+public interface OnUpdate {
 }
