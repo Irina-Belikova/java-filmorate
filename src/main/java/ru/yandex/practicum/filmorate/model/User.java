@@ -20,7 +20,8 @@ public class User {
 
     private Long id;
 
-    @Email(groups = OnCreate.class)
+    @NotBlank(groups = OnCreate.class) //поле не пустое только при создании объекта, при обновлении не участвует
+    @Email(groups = {OnCreate.class, OnUpdate.class}) //проверка формату email и при создании, и при обновлении; при обновлении пропускает пустое поле
     private String email;
 
     @NotBlank
