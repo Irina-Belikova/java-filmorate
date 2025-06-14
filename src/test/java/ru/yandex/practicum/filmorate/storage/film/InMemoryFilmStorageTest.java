@@ -1,4 +1,4 @@
-package ru.yandex.practicum.filmorate.manager;
+package ru.yandex.practicum.filmorate.storage.film;
 
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
@@ -9,25 +9,25 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class FilmManagerTest {
-    private final FilmManager fm = new FilmManager();
+class InMemoryFilmStorageTest {
+    private final FilmStorage filmStorage = new InMemoryFilmStorage();
 
     @Test
     void shouldBeCreateAndUpdate() {
         Film film = Film.builder().name("название").description("описание")
                 .releaseDate(LocalDate.of(2022, 1, 1)).duration(100L).build();
-        fm.create(film);
-        List<Film> films = fm.getAll();
+        filmStorage.create(film);
+        List<Film> films = filmStorage.getAll();
         assertEquals(1, films.size(), "Фильм не добавился в таблицу.");
 
         film.setDuration(150L);
-        fm.update(film);
-        films = fm.getAll();
+        filmStorage.update(film);
+        films = filmStorage.getAll();
         Film updateFilm = films.getFirst();
         assertEquals(updateFilm.getDuration(), film.getDuration(), "Данные в таблице не обновились.");
 
         film.setReleaseDate(LocalDate.of(1700, 1, 1));
-        ValidationException exception = assertThrows(ValidationException.class, () -> fm.update(film), "Исключение не выбрасывается.");
+        ValidationException exception = assertThrows(ValidationException.class, () -> filmStorage.update(film), "Исключение не выбрасывается.");
         assertEquals("Дата создания фильма должна быть позже 28 декабря 1895 г.", exception.getMessage());
     }
 }

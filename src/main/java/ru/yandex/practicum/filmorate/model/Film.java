@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 @Builder
@@ -27,7 +29,20 @@ public class Film {
     @Positive
     private Long duration;
 
+    private Set<Long> likeUserId;
+
     public boolean validDate() {
         return this.releaseDate.isAfter(MOVIE_BIRTHDAY);
+    }
+
+    public boolean addLike(long userId) {
+        if (likeUserId == null) {
+            likeUserId = new HashSet<>();
+        }
+        return this.likeUserId.add(userId);
+    }
+
+    public boolean deleteLike(long userId) {
+        return this.likeUserId.remove(userId);
     }
 }

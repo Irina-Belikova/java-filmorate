@@ -1,6 +1,9 @@
-package ru.yandex.practicum.filmorate.manager;
+package ru.yandex.practicum.filmorate.storage.film;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ServiceErrorException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
@@ -10,11 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
-public class FilmManager {
+@Component
+public class InMemoryFilmStorage implements FilmStorage {
+
     private final Map<Long, Film> films = new HashMap<>();
     private long filmId = 0;
 
-
+    @Override
     public Film create(Film film) {
         if (!film.validDate()) {
             log.error("Дата создания фильма {} не может быть раньше 28.12.1895.", film.getReleaseDate());
@@ -27,10 +32,12 @@ public class FilmManager {
             log.info("Фильм успешно сохранён: {}", film);
         } catch (Exception e) {
             log.error("Ошибка при сохранении фильма.", e);
+            throw new ServiceErrorException("Ошибка сохранения фильма на сервере.");
         }
         return film;
     }
 
+    @Override
     public Film update(Film newFilm) {
         if (newFilm.getId() == null) {
             log.error("Поле с Id фильма не должно быть пустым.");
@@ -39,7 +46,7 @@ public class FilmManager {
 
         if (!films.containsKey(newFilm.getId())) {
             log.error("Фильм с таким Id - {} не найден в таблице.", newFilm.getId());
-            throw new ValidationException("Фильма с таким Id нет.");
+            throw new NotFoundException("Фильма с таким Id нет.");
         }
 
         if (!newFilm.validDate()) {
@@ -52,11 +59,27 @@ public class FilmManager {
             log.info("Данные фильма {} успешно обновлены.", newFilm.getName());
         } catch (Exception e) {
             log.error("Ошибка при сохранении обновлённых данных фильма.", e);
+            throw new ServiceErrorException("Ошибка сохранения обновлений фильма на сервере.");
         }
         return newFilm;
     }
 
+    @Override
     public List<Film> getAll() {
         return new ArrayList<>(films.values());
+    }
+
+    @Override
+    public void deleteById(long id) {
+        films.remove(id);
+    }
+
+    @Override
+    public Film getFilmById(long id) {
+        if (!films.containsKey(id)) {
+            log.error("Фильм с таким Id - {} не сохранён.", id);
+            throw new NotFoundException("Фильма с таким Id нет.");
+        }
+        return films.get(id);
     }
 }
