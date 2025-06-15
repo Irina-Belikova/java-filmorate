@@ -37,6 +37,13 @@ public class User {
 
     private Set<Long> friendsId;
 
+    public Set<Long> getFriendsId() {
+        if (friendsId == null) {
+            friendsId = new HashSet<>();
+        }
+        return friendsId;
+    }
+
     public void validName() {
         if (this.name == null) {
             this.name = this.login;

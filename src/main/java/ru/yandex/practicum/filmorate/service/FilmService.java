@@ -42,18 +42,19 @@ public class FilmService {
         filmStorage.deleteById(id);
     }
 
-    public void addNewLike(long id, long userId) {
+    public Film addNewLike(long id, long userId) {
         Film film = filmStorage.getFilmById(id);
         User user = userStorage.getUserById(userId);
 
         if (!film.addLike(userId)) {
             throw new DuplicatedDataException("Данный пользователь уже поставил лайк этому фильму.");
         }
-        filmStorage.update(film);
+        return filmStorage.update(film);
     }
 
     public void removeLike(long id, long userId) {
         Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
 
         if (!film.deleteLike(userId)) {
             throw new ValidationException("Данный пользователь не ставил лайк этому фильму.");

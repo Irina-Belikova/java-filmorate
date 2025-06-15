@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,7 +41,7 @@ public class UserService {
         userStorage.deleteById(id);
     }
 
-    public void addNewFriend(long id, long friendId) {
+    public User addNewFriend(long id, long friendId) {
         if (id == friendId) {
             throw new ValidationException("Нельзя добавить себя самого в друзья");
         }
@@ -58,6 +59,7 @@ public class UserService {
         userStorage.update(friend);
         log.info("Данные пользователя user с добавленным другом: {}, id друзей - {}", user, user.getFriendsId());
         log.info("Данные пользователя friend с добавленным другом: {}, id друзей -  {}", friend, friend.getFriendsId());
+        return user;
     }
 
     public void removeFriend(long id, long friendId) {
@@ -68,9 +70,8 @@ public class UserService {
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
 
-        if (!user.deleteFriend(friend) || !friend.deleteFriend(user)) {
-            throw new ValidationException("Пользователи и так не в друзьях друг у друга.");
-        }
+        user.deleteFriend(friend);
+        friend.deleteFriend(user);
 
         userStorage.update(user);
         userStorage.update(friend);
@@ -79,14 +80,14 @@ public class UserService {
     public List<User> getAllFriends(long id) {
         User user = userStorage.getUserById(id);
         if (user.getFriendsId() == null) {
-            return List.of(user);
+            return new ArrayList<>();
         }
         return user.getFriendsId().stream()
                 .map(userStorage::getUserById)
                 .toList();
     }
 
-    public List<Long> getMutualFriends(long id, long otherId) {
+    public List<User> getMutualFriends(long id, long otherId) {
         if (id == otherId) {
             throw new ValidationException("Нельзя искать общих друзей у одного пользователя.");
         }
@@ -94,6 +95,7 @@ public class UserService {
         Set<Long> otherUserId = userStorage.getUserById(otherId).getFriendsId();
         return userId.stream()
                 .filter(otherUserId::contains)
+                .map(userStorage::getUserById)
                 .collect(Collectors.toList());
     }
 }

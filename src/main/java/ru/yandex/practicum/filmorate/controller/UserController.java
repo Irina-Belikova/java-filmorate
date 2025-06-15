@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -52,35 +51,37 @@ public class UserController {
     }
 
     @PutMapping("{id}/friends/{friendId}")
-    public ResponseEntity<String> addFriend(@PathVariable Long id, @PathVariable Long friendId) {
+    public User addFriend(@PathVariable Long id, @PathVariable Long friendId) {
         log.info("Получен запрос на добавление в друзья пользователей с id: {} и {}", id, friendId);
 
         if (id <= 0 || friendId <= 0) {
             throw new ValidationException("Некорректный id одного из пользователей.");
         }
-        userService.addNewFriend(id, friendId);
-        return ResponseEntity.status(HttpStatus.OK).body("Пользователи добавлены друг другу в друзья.");
+        return userService.addNewFriend(id, friendId);
     }
 
     @DeleteMapping("/{id}/friends/{friendId}")
-    public ResponseEntity<String> removeFriend(@PathVariable Long id, @PathVariable Long friendId) {
+    public ResponseEntity<Void> removeFriend(@PathVariable Long id, @PathVariable Long friendId) {
+        log.info("Получен запрос на удаление пользователей с id: {} и {}", id, friendId);
         if (id <= 0 || friendId <= 0) {
             throw new ValidationException("Id одного из пользователей некорректен.");
         }
         userService.removeFriend(id, friendId);
-        return ResponseEntity.status(HttpStatus.OK).body("Пользователи удалены из друзей друг у друга.");
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/friends")
     public List<User> getAllFriends(@PathVariable Long id) {
+        log.info("Получен запрос на получение списка всех друзей у пользователя {}", id);
         if (id <= 0) {
             throw new ValidationException("Некорректный id пользователя.");
         }
+        log.info("Получаемый список друзей {}", userService.getAllFriends(id));
         return userService.getAllFriends(id);
     }
 
     @GetMapping("/{id}/friends/common/{otherId}")
-    public List<Long> getMutualFriends(@PathVariable long id, @PathVariable long otherId) {
+    public List<User> getMutualFriends(@PathVariable long id, @PathVariable long otherId) {
         if (id <= 0 || otherId <= 0) {
             throw new ValidationException("Id одного из пользователей некорректен.");
         }

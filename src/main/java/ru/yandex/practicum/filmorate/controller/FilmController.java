@@ -49,15 +49,14 @@ public class FilmController {
     }
 
     @PutMapping("/{id}/like/{userId}")
-    public String addLike(@PathVariable long id, @PathVariable long userId) {
+    public Film addLike(@PathVariable long id, @PathVariable long userId) {
         if (id <= 0) {
             throw new ValidationException("Некорректный id фильма.");
         }
         if (userId <= 0) {
             throw new ValidationException("Некорректный id пользователя.");
         }
-        filmService.addNewLike(id, userId);
-        return "Фильму добавлен лайк.";
+        return filmService.addNewLike(id, userId);
     }
 
     @DeleteMapping("/{id}/like/{userId}")

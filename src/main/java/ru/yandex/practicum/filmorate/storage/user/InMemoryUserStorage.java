@@ -23,7 +23,7 @@ public class InMemoryUserStorage implements UserStorage {
         user.setId(++userId);
         try {
             users.put(user.getId(), user);
-            log.info("Пользователь {} успешно сохранён.", user.getId());
+            log.info("Пользователь успешно сохранён: {}", user);
         } catch (Exception e) {
             log.error("Ошибка при сохранении пользователя.", e);
             throw new ServiceErrorException("Ошибка сохранения данных пользователя.");

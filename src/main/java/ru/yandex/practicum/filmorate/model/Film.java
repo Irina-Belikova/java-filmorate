@@ -31,6 +31,13 @@ public class Film {
 
     private Set<Long> likeUserId;
 
+    public Set<Long> getLikeUserId() {
+        if (likeUserId == null) {
+            likeUserId = new HashSet<>();
+        }
+        return likeUserId;
+    }
+
     public boolean validDate() {
         return this.releaseDate.isAfter(MOVIE_BIRTHDAY);
     }
