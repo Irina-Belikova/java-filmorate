@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.storage.user;
 
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryUserStorageTest {
-    private final UserStorage userStorage = new InMemoryUserStorage();
+    private final UserService userStorage = new UserService(new InMemoryUserStorage());
 
     @Test
     void shouldBeCreateAndUpdate() {

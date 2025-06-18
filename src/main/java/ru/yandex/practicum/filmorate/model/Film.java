@@ -31,7 +31,7 @@ public class Film {
     private Long duration;
 
     @JsonIgnore
-    private Set<Long> likeUserId = new HashSet<>();
+    private final Set<Long> likeUserId = new HashSet<>();
 
     public boolean validDate() {
         return releaseDate.isAfter(MOVIE_BIRTHDAY);

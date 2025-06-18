@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.storage.film;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,7 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryFilmStorageTest {
-    private final FilmStorage filmStorage = new InMemoryFilmStorage();
+    private final FilmService filmStorage = new FilmService(new InMemoryFilmStorage(), new InMemoryUserStorage());
 
     @Test
     void shouldBeCreateAndUpdate() {
