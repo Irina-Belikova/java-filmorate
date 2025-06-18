@@ -4,12 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ServiceErrorException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,16 +21,26 @@ public class UserService {
     private final UserStorage userStorage;
 
     @Autowired
-    public UserService(InMemoryUserStorage userStorage) {
+    public UserService(UserStorage userStorage) {
         this.userStorage = userStorage;
     }
 
     public User create(User user) {
-        return userStorage.create(user);
+        validateUserForCreate(user);
+        try {
+            return userStorage.create(user);
+        } catch (Exception e) {
+            throw new ServiceErrorException("Ошибка сохранения данных пользователя.");
+        }
     }
 
     public User update(User newUser) {
-        return userStorage.update(newUser);
+        validateUserForUpdate(newUser);
+        try {
+            return userStorage.update(newUser);
+        } catch (Exception e) {
+            throw new ServiceErrorException("Ошибка обновления данных пользователя.");
+        }
     }
 
     public List<User> getAll() {
@@ -38,14 +48,12 @@ public class UserService {
     }
 
     public void deleteById(long id) {
+        checkUserExists(id);
         userStorage.deleteById(id);
     }
 
     public User addNewFriend(long id, long friendId) {
-        if (id == friendId) {
-            throw new ValidationException("Нельзя добавить себя самого в друзья");
-        }
-
+        validateFriend(id, friendId);
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
         log.info("Данные пользователя user: {}", user);
@@ -54,7 +62,6 @@ public class UserService {
         if (!user.addFriend(friend) || !friend.addFriend(user)) {
             throw new DuplicatedDataException("Пользователи с такими id уже в друзьях.");
         }
-
         userStorage.update(user);
         userStorage.update(friend);
         log.info("Данные пользователя user с добавленным другом: {}, id друзей - {}", user, user.getFriendsId());
@@ -63,10 +70,7 @@ public class UserService {
     }
 
     public void removeFriend(long id, long friendId) {
-        if (id == friendId) {
-            throw new ValidationException("Id пользователей не должны совпадать.");
-        }
-
+        validateFriend(id, friendId);
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
 
@@ -78,24 +82,72 @@ public class UserService {
     }
 
     public List<User> getAllFriends(long id) {
+        checkUserExists(id);
         User user = userStorage.getUserById(id);
-        if (user.getFriendsId() == null) {
-            return new ArrayList<>();
-        }
         return user.getFriendsId().stream()
                 .map(userStorage::getUserById)
                 .toList();
     }
 
     public List<User> getMutualFriends(long id, long otherId) {
-        if (id == otherId) {
-            throw new ValidationException("Нельзя искать общих друзей у одного пользователя.");
-        }
+        validateMutualFriends(id, otherId);
         Set<Long> userId = userStorage.getUserById(id).getFriendsId();
         Set<Long> otherUserId = userStorage.getUserById(otherId).getFriendsId();
         return userId.stream()
                 .filter(otherUserId::contains)
                 .map(userStorage::getUserById)
                 .collect(Collectors.toList());
+    }
+
+    private void validateUserForCreate(User user) {
+        if (user.getId() != null) {
+            if (userStorage.getUserById(user.getId()) != null) {
+                throw new ValidationException("Пользователь с таким id уже существует.");
+            }
+        }
+        if (userStorage.getEmails().contains(user.getEmail())) {
+            throw new ValidationException("Пользователь с таким email уже существует.");
+        }
+        user.validName();
+    }
+
+    private void validateUserForUpdate(User newUser) {
+        if (newUser.getId() == null) {
+            throw new ValidationException("Id пользователя должен быть указан.");
+        }
+        if (userStorage.getUserById(newUser.getId()) == null) {
+            throw new NotFoundException("Пользователя с таким Id нет.");
+        }
+        User oldUser = userStorage.getUserById(newUser.getId());
+        if (!oldUser.getEmail().equals(newUser.getEmail())) {
+            if (userStorage.checkEmail(newUser.getEmail())) {
+                throw new ValidationException("Пользователь с таким email уже существует.");
+            }
+        }
+        newUser.validName();
+    }
+
+    private void checkUserExists(long id) {
+        if (userStorage.getUserById(id) == null) {
+            throw new NotFoundException("Пользователя с таким id и так нет.");
+        }
+    }
+
+    private void validateFriend(long id, long friendId) {
+        if (id == friendId) {
+            throw new ValidationException("Нельзя добавить себя самого в друзья");
+        }
+        if (userStorage.getUserById(id) == null || userStorage.getUserById(friendId) == null) {
+            throw new NotFoundException("Один из друзей не найден в сервисе.");
+        }
+    }
+
+    private void validateMutualFriends(long id, long otherId) {
+        if (id == otherId) {
+            throw new ValidationException("Нельзя искать общих друзей у одного пользователя.");
+        }
+        if (userStorage.getUserById(id) == null || userStorage.getUserById(otherId) == null) {
+            throw new NotFoundException("Один из друзей не найден в сервисе.");
+        }
     }
 }

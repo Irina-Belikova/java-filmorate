@@ -15,4 +15,6 @@ public interface FilmStorage {
     void deleteById(long id);
 
     Film getFilmById(long id);
+
+    List<Film> getBestFilms(long count);
 }

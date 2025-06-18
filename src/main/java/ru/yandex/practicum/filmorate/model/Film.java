@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -29,27 +30,18 @@ public class Film {
     @Positive
     private Long duration;
 
-    private Set<Long> likeUserId;
-
-    public Set<Long> getLikeUserId() {
-        if (likeUserId == null) {
-            likeUserId = new HashSet<>();
-        }
-        return likeUserId;
-    }
+    @JsonIgnore
+    private Set<Long> likeUserId = new HashSet<>();
 
     public boolean validDate() {
-        return this.releaseDate.isAfter(MOVIE_BIRTHDAY);
+        return releaseDate.isAfter(MOVIE_BIRTHDAY);
     }
 
     public boolean addLike(long userId) {
-        if (likeUserId == null) {
-            likeUserId = new HashSet<>();
-        }
-        return this.likeUserId.add(userId);
+        return likeUserId.add(userId);
     }
 
     public boolean deleteLike(long userId) {
-        return this.likeUserId.remove(userId);
+        return likeUserId.remove(userId);
     }
 }

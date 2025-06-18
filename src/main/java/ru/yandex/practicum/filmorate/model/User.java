@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
@@ -35,29 +36,20 @@ public class User {
     @PastOrPresent(groups = {OnCreate.class, OnUpdate.class})
     private LocalDate birthday;
 
-    private Set<Long> friendsId;
-
-    public Set<Long> getFriendsId() {
-        if (friendsId == null) {
-            friendsId = new HashSet<>();
-        }
-        return friendsId;
-    }
+    @JsonIgnore
+    private Set<Long> friendsId = new HashSet<>();
 
     public void validName() {
-        if (this.name == null) {
-            this.name = this.login;
+        if (name == null) {
+            name = login;
         }
     }
 
     public boolean addFriend(User friend) {
-        if (friendsId == null) {
-            friendsId = new HashSet<>();
-        }
-        return this.friendsId.add(friend.getId());
+        return friendsId.add(friend.getId());
     }
 
     public boolean deleteFriend(User friend) {
-        return this.friendsId.remove(friend.getId());
+        return friendsId.remove(friend.getId());
     }
 }

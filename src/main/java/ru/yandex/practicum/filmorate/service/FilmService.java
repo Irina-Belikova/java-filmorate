@@ -3,16 +3,15 @@ package ru.yandex.practicum.filmorate.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ServiceErrorException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.film.InMemoryFilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class FilmService {
@@ -21,17 +20,27 @@ public class FilmService {
     private final UserStorage userStorage;
 
     @Autowired
-    public FilmService(InMemoryFilmStorage filmStorage, InMemoryUserStorage userStorage) {
+    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
     }
 
     public Film create(Film film) {
-        return filmStorage.create(film);
+        validateFilmForCreate(film);
+        try {
+            return filmStorage.create(film);
+        } catch (Exception e) {
+            throw new ServiceErrorException("Ошибка сохранения фильма на сервере.");
+        }
     }
 
     public Film update(Film newFilm) {
-        return filmStorage.update(newFilm);
+        validateFilmForUpdate(newFilm);
+        try {
+            return filmStorage.update(newFilm);
+        } catch (Exception e) {
+            throw new ServiceErrorException("Ошибка сохранения обновлений фильма на сервере.");
+        }
     }
 
     public List<Film> getAll() {
@@ -39,12 +48,13 @@ public class FilmService {
     }
 
     public void deleteById(long id) {
+        checkFilmExists(id);
         filmStorage.deleteById(id);
     }
 
     public Film addNewLike(long id, long userId) {
+        validateUserLike(id, userId);
         Film film = filmStorage.getFilmById(id);
-        User user = userStorage.getUserById(userId);
 
         if (!film.addLike(userId)) {
             throw new DuplicatedDataException("Данный пользователь уже поставил лайк этому фильму.");
@@ -53,8 +63,8 @@ public class FilmService {
     }
 
     public void removeLike(long id, long userId) {
+        validateUserLike(id, userId);
         Film film = filmStorage.getFilmById(id);
-        User user = userStorage.getUserById(userId);
 
         if (!film.deleteLike(userId)) {
             throw new ValidationException("Данный пользователь не ставил лайк этому фильму.");
@@ -63,9 +73,46 @@ public class FilmService {
     }
 
     public List<Film> getBestFilms(long count) {
-        return filmStorage.getAll().stream()
-                .sorted((f1, f2) -> Integer.compare(f2.getLikeUserId().size(), f1.getLikeUserId().size()))
-                .limit(count)
-                .collect(Collectors.toList());
+        return filmStorage.getBestFilms(count);
+    }
+
+    private void validateFilmForCreate(Film film) {
+        if (film.getId() != null) {
+            if (filmStorage.getFilmById(film.getId()) != null) {
+                throw new ValidationException("Такой фильм уже существует.");
+            }
+        }
+        if (!film.validDate()) {
+            throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
+        }
+    }
+
+    private void validateFilmForUpdate(Film newFilm) {
+        if (newFilm.getId() == null) {
+            throw new ValidationException("Id фильма должен быть указан.");
+        }
+        if (filmStorage.getFilmById(newFilm.getId()) == null) {
+            throw new NotFoundException("Фильма с таким Id нет.");
+        }
+        if (!newFilm.validDate()) {
+            throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
+        }
+    }
+
+    private void checkFilmExists(long id) {
+        if (filmStorage.getFilmById(id) == null) {
+            throw new NotFoundException("Фильма с таким id и так нет.");
+        }
+    }
+
+    private void validateUserLike(long id, long userId) {
+        Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
+        if (film == null) {
+            throw new NotFoundException("Фильма с таким id нет.");
+        }
+        if (user == null) {
+            throw new NotFoundException("Пользователя с таким id нет.");
+        }
     }
 }
