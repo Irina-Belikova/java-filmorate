@@ -1,10 +1,11 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
@@ -13,24 +14,28 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/films")
+@Validated
 public class FilmController {
     private final FilmService filmService;
+
 
     @Autowired
     public FilmController(FilmService filmService) {
         this.filmService = filmService;
     }
 
-
     @PostMapping
     public Film createFilm(@Valid @RequestBody Film film) {
         log.info("Получен запрос на создание фильма: {}", film);
+        filmService.validateFilmForCreate(film);
+
         return filmService.create(film);
     }
 
     @PutMapping
-    public Film upDateFilm(@Valid @RequestBody Film newFilm) {
+    public Film updateFilm(@Valid @RequestBody Film newFilm) {
         log.info("Получен запрос на обновление фильма: {}", newFilm);
+        filmService.validateFilmForUpdate(newFilm);
         return filmService.update(newFilm);
     }
 
@@ -40,33 +45,23 @@ public class FilmController {
     }
 
     @DeleteMapping("/{id}")
-    public String deleteFilmById(@PathVariable Long id) {
-        if (id <= 0) {
-            throw new ValidationException("Некорректный id фильма.");
-        }
+    public String deleteFilmById(@PathVariable @Positive(message = "Некорректный id фильма.") Long id) {
+        filmService.checkFilmExists(id);
         filmService.deleteById(id);
         return String.format("Фильм с id - %d успешно удалён.", id);
     }
 
     @PutMapping("/{id}/like/{userId}")
-    public Film addLike(@PathVariable long id, @PathVariable long userId) {
-        if (id <= 0) {
-            throw new ValidationException("Некорректный id фильма.");
-        }
-        if (userId <= 0) {
-            throw new ValidationException("Некорректный id пользователя.");
-        }
+    public Film addLike(@PathVariable @Positive(message = "Некорректный id фильма.") long id,
+                        @PathVariable @Positive(message = "Некорректный id пользователя.") long userId) {
+        filmService.validateUserLike(id, userId);
         return filmService.addNewLike(id, userId);
     }
 
     @DeleteMapping("/{id}/like/{userId}")
-    public String removeLike(@PathVariable long id, @PathVariable long userId) {
-        if (id <= 0) {
-            throw new ValidationException("Некорректный id фильма.");
-        }
-        if (userId <= 0) {
-            throw new ValidationException("Некорректный id пользователя.");
-        }
+    public String removeLike(@PathVariable @Positive(message = "Некорректный id фильма.") long id,
+                             @PathVariable @Positive(message = "Некорректный id пользователя.") long userId) {
+        filmService.validateUserLike(id, userId);
         filmService.removeLike(id, userId);
         return "Лайк пользователя удалён.";
     }
@@ -76,4 +71,5 @@ public class FilmController {
         log.info("Получен запрос на получение списка лучших фильмов в количестве: {}", count);
         return filmService.getBestFilms(count);
     }
+
 }

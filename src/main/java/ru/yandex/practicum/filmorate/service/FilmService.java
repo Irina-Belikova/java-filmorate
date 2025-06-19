@@ -26,7 +26,6 @@ public class FilmService {
     }
 
     public Film create(Film film) {
-        validateFilmForCreate(film);
         try {
             return filmStorage.create(film);
         } catch (Exception e) {
@@ -35,7 +34,6 @@ public class FilmService {
     }
 
     public Film update(Film newFilm) {
-        validateFilmForUpdate(newFilm);
         try {
             return filmStorage.update(newFilm);
         } catch (Exception e) {
@@ -48,12 +46,10 @@ public class FilmService {
     }
 
     public void deleteById(long id) {
-        checkFilmExists(id);
         filmStorage.deleteById(id);
     }
 
     public Film addNewLike(long id, long userId) {
-        validateUserLike(id, userId);
         Film film = filmStorage.getFilmById(id);
 
         if (!film.addLike(userId)) {
@@ -63,7 +59,6 @@ public class FilmService {
     }
 
     public void removeLike(long id, long userId) {
-        validateUserLike(id, userId);
         Film film = filmStorage.getFilmById(id);
 
         if (!film.deleteLike(userId)) {
@@ -76,7 +71,7 @@ public class FilmService {
         return filmStorage.getBestFilms(count);
     }
 
-    private void validateFilmForCreate(Film film) {
+    public void validateFilmForCreate(Film film) {
         if (film.getId() != null) {
             if (filmStorage.getFilmById(film.getId()) != null) {
                 throw new ValidationException("Такой фильм уже существует.");
@@ -87,7 +82,10 @@ public class FilmService {
         }
     }
 
-    private void validateFilmForUpdate(Film newFilm) {
+    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
+    //эндпоинтов и чтобы там не пришлось создавать поле userService; сделала методы публичными и в контроллере
+    //через filmService.метод() происходит вся валидация входящих данных
+    public void validateFilmForUpdate(Film newFilm) {
         if (newFilm.getId() == null) {
             throw new ValidationException("Id фильма должен быть указан.");
         }
@@ -99,13 +97,13 @@ public class FilmService {
         }
     }
 
-    private void checkFilmExists(long id) {
+    public void checkFilmExists(long id) {
         if (filmStorage.getFilmById(id) == null) {
             throw new NotFoundException("Фильма с таким id и так нет.");
         }
     }
 
-    private void validateUserLike(long id, long userId) {
+    public void validateUserLike(long id, long userId) {
         Film film = filmStorage.getFilmById(id);
         User user = userStorage.getUserById(userId);
         if (film == null) {

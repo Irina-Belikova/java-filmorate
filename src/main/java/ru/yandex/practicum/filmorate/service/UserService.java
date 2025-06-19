@@ -26,7 +26,6 @@ public class UserService {
     }
 
     public User create(User user) {
-        validateUserForCreate(user);
         try {
             return userStorage.create(user);
         } catch (Exception e) {
@@ -35,7 +34,6 @@ public class UserService {
     }
 
     public User update(User newUser) {
-        validateUserForUpdate(newUser);
         try {
             return userStorage.update(newUser);
         } catch (Exception e) {
@@ -48,12 +46,10 @@ public class UserService {
     }
 
     public void deleteById(long id) {
-        checkUserExists(id);
         userStorage.deleteById(id);
     }
 
     public User addNewFriend(long id, long friendId) {
-        validateFriend(id, friendId);
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
         log.info("Данные пользователя user: {}", user);
@@ -70,7 +66,6 @@ public class UserService {
     }
 
     public void removeFriend(long id, long friendId) {
-        validateFriend(id, friendId);
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
 
@@ -82,7 +77,6 @@ public class UserService {
     }
 
     public List<User> getAllFriends(long id) {
-        checkUserExists(id);
         User user = userStorage.getUserById(id);
         return user.getFriendsId().stream()
                 .map(userStorage::getUserById)
@@ -90,7 +84,6 @@ public class UserService {
     }
 
     public List<User> getMutualFriends(long id, long otherId) {
-        validateMutualFriends(id, otherId);
         Set<Long> userId = userStorage.getUserById(id).getFriendsId();
         Set<Long> otherUserId = userStorage.getUserById(otherId).getFriendsId();
         return userId.stream()
@@ -99,7 +92,9 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    private void validateUserForCreate(User user) {
+    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
+    //эндпоинтов; сделала методы публичными и в контроллере через userService.метод() происходит вся валидация входящих данных
+    public void validateUserForCreate(User user) {
         if (user.getId() != null) {
             if (userStorage.getUserById(user.getId()) != null) {
                 throw new ValidationException("Пользователь с таким id уже существует.");
@@ -111,7 +106,7 @@ public class UserService {
         user.validName();
     }
 
-    private void validateUserForUpdate(User newUser) {
+    public void validateUserForUpdate(User newUser) {
         if (newUser.getId() == null) {
             throw new ValidationException("Id пользователя должен быть указан.");
         }
@@ -127,13 +122,13 @@ public class UserService {
         newUser.validName();
     }
 
-    private void checkUserExists(long id) {
+    public void checkUserExists(long id) {
         if (userStorage.getUserById(id) == null) {
-            throw new NotFoundException("Пользователя с таким id и так нет.");
+            throw new NotFoundException("Пользователя с таким id нет.");
         }
     }
 
-    private void validateFriend(long id, long friendId) {
+    public void validateFriend(long id, long friendId) {
         if (id == friendId) {
             throw new ValidationException("Нельзя добавить себя самого в друзья");
         }
@@ -142,7 +137,7 @@ public class UserService {
         }
     }
 
-    private void validateMutualFriends(long id, long otherId) {
+    public void validateMutualFriends(long id, long otherId) {
         if (id == otherId) {
             throw new ValidationException("Нельзя искать общих друзей у одного пользователя.");
         }
