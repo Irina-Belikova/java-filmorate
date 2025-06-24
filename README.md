@@ -10,6 +10,7 @@
 6. Для пользователя user информация о друзьях и о статусе дружбы (подтверждённая или нет) содержится в таблице friends_status. Дружба будет считаться подтвержденной если в таблице будут присутствовать записи подобного вида (user_1 - user_2 и user_2 - user_1).
 
 ## Примеры запросов.
+<pre>
 1.Вывести список фильмов (со всеми данными):
 SELECT *
 FROM film;
@@ -42,3 +43,4 @@ WHERE user_id IN (SELECT fs.friend_id
                   INNER JOIN friend_status AS fr_st ON fs.friend_id = fr_st.friend_id
                   WHERE user_id = 3
                     AND user_id = 7);
+</pre>
