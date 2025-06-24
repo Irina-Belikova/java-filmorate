@@ -7,7 +7,7 @@
 3. В папке genre_type хранится информация о доступных через id типах жанров.
 4. Список лайков к фильму реализован через отдельную таблицу like_user_id, т.к. одному фильму можно добавить большое количество лайков.
 5. Рейтинг фильму присваивается через rating_id, а база данных по расшифровке этих id хранится в таблице rating. Такое решение позволит изменить при необходимости условное обозначение рейтинга без надобности менять информацию в каждом фильме. 
-6. Для пользователя user информация о друзьях и о статусе дружбы (подтверждённая или нет) содержится в таблице Friends_status. Дружба будет считаться подтвержденной если в таблице будут присутствовать записи подобного вида (user_1 - user_2 и user_2 - user_1).
+6. Для пользователя user информация о друзьях и о статусе дружбы (подтверждённая или нет) содержится в таблице friends_status. Дружба будет считаться подтвержденной если в таблице будут присутствовать записи подобного вида (user_1 - user_2 и user_2 - user_1).
 
 ## Примеры запросов.
 1.Вывести список фильмов (со всеми данными):
@@ -18,10 +18,10 @@ FROM film;
 SELECT name
 FROM film
 WHERE film_id IN (SELECT film_id
-		  FROM like_user_id
-		  GROUP BY film_id
-		  ORDER BY COUNT(user_id) DESC
-		  LIMIT 10);
+                  FROM like_user_id
+                  GROUP BY film_id
+                  ORDER BY COUNT(user_id) DESC
+                  LIMIT 10);
 
 3. Вывести список всех пользователей (со всеми данными):
 SELECT *
@@ -31,14 +31,14 @@ FROM user;
 SELECT name
 FROM user
 WHERE user_id IN (SELECT friend_id
-		  FROM friends_status
-		  WHERE user_id = 7);
+                  FROM friends_status
+                  WHERE user_id = 7);
 
 5. Вывести список имён общих друзей у пользователей 3 и 7:
 SELECT u.name
 FROM user AS u
 WHERE user_id IN (SELECT fs.friend_id
-		  FROM friend_status AS fs
-		  INNER JOIN friend_status AS fr_st ON fs.friend_id = fr_st.friend_id
-		  WHERE user_id = 3
-		    AND user_id = 7);
+                  FROM friend_status AS fs
+                  INNER JOIN friend_status AS fr_st ON fs.friend_id = fr_st.friend_id
+                  WHERE user_id = 3
+                    AND user_id = 7);
