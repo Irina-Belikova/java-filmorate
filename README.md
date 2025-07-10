@@ -16,13 +16,15 @@ SELECT *
 FROM film;
 
 2. Вывести 10 лучших фильмов (названия):
-SELECT name
-FROM film
-WHERE film_id IN (SELECT film_id
-                  FROM like_user_id
-                  GROUP BY film_id
-                  ORDER BY COUNT(user_id) DESC
-                  LIMIT 10);
+SELECT f.name
+FROM film AS f
+INNER JOIN (SELECT film_id, 
+                   COUNT(user_id) AS like_count
+            FROM like_user_id
+            GROUP BY film_id
+            ORDER BY like_count DESC
+            LIMIT 10) AS l ON f.film_id = l.film_id
+ORDER BY l.like_count DESC;
 
 3. Вывести список всех пользователей (со всеми данными):
 SELECT *
