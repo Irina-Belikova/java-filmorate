@@ -5,9 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import ru.yandex.practicum.filmorate.dto.GenreDto;
+import ru.yandex.practicum.filmorate.dto.MpaDto;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -32,6 +36,10 @@ public class Film {
 
     @JsonIgnore
     private final Set<Long> likeUserId = new HashSet<>();
+
+    private List<GenreDto> genres = new ArrayList<>();
+
+    private MpaDto mpa;
 
     public boolean validDate() {
         return releaseDate.isAfter(MOVIE_BIRTHDAY);

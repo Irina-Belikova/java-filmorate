@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.ArrayList;
@@ -9,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Component
+@Component("inMemoryFilmStorage")
 public class InMemoryFilmStorage implements FilmStorage {
 
     private final Map<Long, Film> films = new HashMap<>();
@@ -49,5 +50,11 @@ public class InMemoryFilmStorage implements FilmStorage {
                 .sorted((f1, f2) -> Integer.compare(f2.getLikeUserId().size(), f1.getLikeUserId().size()))
                 .limit(count)
                 .collect(Collectors.toList());
+    }
+
+    //не стала в этом классе реализовывать логику этого метода, т.к. его не было в прошлом ФЗ-11
+    @Override
+    public FilmDto getFilmDtoById(long id) {
+        return null;
     }
 }

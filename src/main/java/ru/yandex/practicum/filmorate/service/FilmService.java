@@ -1,7 +1,10 @@
 package ru.yandex.practicum.filmorate.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
+import ru.yandex.practicum.filmorate.dto.GenreDto;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ServiceErrorException;
@@ -20,7 +23,8 @@ public class FilmService {
     private final UserStorage userStorage;
 
     @Autowired
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
+    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                       @Qualifier("userDbStorage") UserStorage userStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
     }
@@ -43,6 +47,10 @@ public class FilmService {
 
     public List<Film> getAll() {
         return filmStorage.getAll();
+    }
+
+    public FilmDto getFilmById(long id) {
+        return filmStorage.getFilmDtoById(id);
     }
 
     public void deleteById(long id) {
@@ -71,6 +79,9 @@ public class FilmService {
         return filmStorage.getBestFilms(count);
     }
 
+    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
+    //эндпоинтов и чтобы там не пришлось создавать поле userService; сделала методы публичными и в контроллере
+    //через filmService.метод() происходит вся валидация входящих данных
     public void validateFilmForCreate(Film film) {
         if (film.getId() != null) {
             if (filmStorage.getFilmById(film.getId()) != null) {
@@ -80,11 +91,16 @@ public class FilmService {
         if (!film.validDate()) {
             throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
         }
+        if (film.getMpa().getId() < 1 || film.getMpa().getId() > 5) {
+            throw new NotFoundException("Id возрастного рейтинга должен быть в диапазоне от 1 до 5.");
+        }
+        for (GenreDto genre : film.getGenres()) {
+            if (genre.getId() < 1 || genre.getId() > 6) {
+                throw new NotFoundException("Id жанра должен быть в диапазоне от 1 до 6.");
+            }
+        }
     }
 
-    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
-    //эндпоинтов и чтобы там не пришлось создавать поле userService; сделала методы публичными и в контроллере
-    //через filmService.метод() происходит вся валидация входящих данных
     public void validateFilmForUpdate(Film newFilm) {
         if (newFilm.getId() == null) {
             throw new ValidationException("Id фильма должен быть указан.");
@@ -94,6 +110,14 @@ public class FilmService {
         }
         if (!newFilm.validDate()) {
             throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
+        }
+        if (newFilm.getMpa().getId() < 1 || newFilm.getMpa().getId() > 5) {
+            throw new NotFoundException("Id возрастного рейтинга должен быть в диапазоне от 1 до 5.");
+        }
+        for (GenreDto genre : newFilm.getGenres()) {
+            if (genre.getId() < 1 || genre.getId() > 6) {
+                throw new NotFoundException("Id жанра должен быть в диапазоне от 1 до 6.");
+            }
         }
     }
 

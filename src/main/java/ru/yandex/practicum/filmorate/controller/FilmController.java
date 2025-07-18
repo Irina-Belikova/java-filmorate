@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
@@ -28,7 +29,6 @@ public class FilmController {
     public Film createFilm(@Valid @RequestBody Film film) {
         log.info("Получен запрос на создание фильма: {}", film);
         filmService.validateFilmForCreate(film);
-
         return filmService.create(film);
     }
 
@@ -49,6 +49,13 @@ public class FilmController {
         filmService.checkFilmExists(id);
         filmService.deleteById(id);
         return String.format("Фильм с id - %d успешно удалён.", id);
+    }
+
+    @GetMapping("/{id}")
+    public FilmDto getFilmById(@PathVariable @Positive(message = "Некорректный id фильма.") long id) {
+        log.info("Получен запрос на поиск фильма по id: {}", id);
+        filmService.checkFilmExists(id);
+        return filmService.getFilmById(id);
     }
 
     @PutMapping("/{id}/like/{userId}")

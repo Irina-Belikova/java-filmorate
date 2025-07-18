@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -14,14 +14,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 public class UserService {
 
     private final UserStorage userStorage;
 
     @Autowired
-    public UserService(UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
         this.userStorage = userStorage;
     }
 
@@ -52,28 +51,19 @@ public class UserService {
     public User addNewFriend(long id, long friendId) {
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
-        log.info("Данные пользователя user: {}", user);
-        log.info("Данные пользователя friend: {}", friend);
 
-        if (!user.addFriend(friend) || !friend.addFriend(user)) {
-            throw new DuplicatedDataException("Пользователи с такими id уже в друзьях.");
+        if (!user.addFriend(friend)) {
+            throw new DuplicatedDataException("Пользователь с таким id уже в друзьях.");
         }
         userStorage.update(user);
-        userStorage.update(friend);
-        log.info("Данные пользователя user с добавленным другом: {}, id друзей - {}", user, user.getFriendsId());
-        log.info("Данные пользователя friend с добавленным другом: {}, id друзей -  {}", friend, friend.getFriendsId());
         return user;
     }
 
     public void removeFriend(long id, long friendId) {
         User user = userStorage.getUserById(id);
         User friend = userStorage.getUserById(friendId);
-
         user.deleteFriend(friend);
-        friend.deleteFriend(user);
-
         userStorage.update(user);
-        userStorage.update(friend);
     }
 
     public List<User> getAllFriends(long id) {
