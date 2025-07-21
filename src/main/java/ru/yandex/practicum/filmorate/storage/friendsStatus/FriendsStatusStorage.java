@@ -6,6 +6,4 @@ public interface FriendsStatusStorage {
     Set<Long> getFriendsId(long userId);
 
     void deleteAllFriends(long userId);
-
-    void addFriendId(long userId, long friendId);
 }

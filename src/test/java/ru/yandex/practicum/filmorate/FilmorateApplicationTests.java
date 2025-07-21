@@ -12,6 +12,9 @@ import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 import ru.yandex.practicum.filmorate.storage.friendsStatus.FriendsStatusDbStorage;
 import ru.yandex.practicum.filmorate.storage.friendsStatus.FriendsStatusStorage;
 import ru.yandex.practicum.filmorate.storage.genreType.GenreTypeDbStorage;
+import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
+import ru.yandex.practicum.filmorate.storage.mappers.GenreTypeRowMapper;
+import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 
@@ -23,8 +26,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @JdbcTest
 @AutoConfigureTestDatabase
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
-@Import({UserDbStorage.class, FriendsStatusDbStorage.class, FriendsStatusDbStorage.class,
-        FilmDbStorage.class, MpaDbStorage.class, GenreTypeDbStorage.class})
+@Import({UserDbStorage.class, FriendsStatusDbStorage.class,
+        FilmDbStorage.class, MpaDbStorage.class, GenreTypeDbStorage.class,
+        UserRowMapper.class, FilmRowMapper.class, GenreTypeRowMapper.class})
 class FilmorateApplicationTests {
     private final UserDbStorage userStorage;
     private final FriendsStatusStorage friendsStatusStorage;
@@ -41,13 +45,13 @@ class FilmorateApplicationTests {
                                 .hasFieldOrPropertyWithValue("id", 1L)
                 );
 
-        Set<Long> friendsIds = friendsStatusStorage.getFriendsId(1);
+        Set<Long> friendsIds = friendsStatusStorage.getFriendsId(1L);
         assertThat(friendsIds)
                 .isNotNull()
                 .hasSize(2);
 
-        friendsStatusStorage.deleteAllFriends(1);
-        assertThat(friendsStatusStorage.getFriendsId(1)).isEmpty();
+        friendsStatusStorage.deleteAllFriends(1L);
+        assertThat(friendsStatusStorage.getFriendsId(1L)).isEmpty();
     }
 
     @Test

@@ -6,21 +6,19 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.friendsStatus.FriendsStatusStorage;
+import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@Repository("userDbStorage")
+@Repository
 @RequiredArgsConstructor
 public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbc;
-    private final FriendsStatusStorage fs;
+    private final UserRowMapper userRowMapper;
 
     private static final String FIND_BY_ID_QUERY = "SELECT * FROM users WHERE user_id = ?";
     private static final String FIND_ALL_QUERY = "SELECT * FROM users";
@@ -34,7 +32,9 @@ public class UserDbStorage implements UserStorage {
             UPDATE users
             SET name = ?, login = ?, email = ?, birthday = ?
             WHERE user_id = ?""";
-
+    private static final String DELETE_ALL_FRIENDS = "DELETE FROM friends_status WHERE user_id = ?";
+    private static final String INSERT_FRIEND = "INSERT INTO friends_status (user_id, friend_id) VALUES (?, ?)";
+    private static final String GET_FRIENDS_ID = "SELECT friend_id FROM friends_status WHERE user_id = ?";
 
     @Override
     public User create(User user) {
@@ -65,14 +65,19 @@ public class UserDbStorage implements UserStorage {
                 newUser.getEmail(),
                 java.sql.Date.valueOf(newUser.getBirthday()),
                 newUser.getId());
-        fs.deleteAllFriends(newUser.getId());
-        newUser.getFriendsId().forEach(friendId -> fs.addFriendId(newUser.getId(), friendId));
+        jdbc.update(DELETE_ALL_FRIENDS, newUser.getId());
+        newUser.getFriendsId().forEach(friendId -> jdbc.update(INSERT_FRIEND, newUser.getId(), friendId));
         return newUser;
     }
 
+    //здесь, я так понимаю, у меня тоже обращение к БД в цикле, не стала пока переделывать, т.к.
+    //принцип бы повторила как в FilmDbStorage и здесь тоже появился бы маппер, который заполняет
+    //Map<Long, Set<Long>>
     @Override
     public List<User> getAll() {
-        return jdbc.query(FIND_ALL_QUERY, this::mapRow);
+        List<User> users = jdbc.query(FIND_ALL_QUERY, userRowMapper);
+        users.forEach(this::addFriends);
+        return users;
     }
 
     @Override
@@ -83,7 +88,9 @@ public class UserDbStorage implements UserStorage {
     @Override
     public User getUserById(long id) {
         try {
-            return jdbc.queryForObject(FIND_BY_ID_QUERY, this::mapRow, id);
+            User user = jdbc.queryForObject(FIND_BY_ID_QUERY, userRowMapper, id);
+            addFriends(user);
+            return user;
         } catch (EmptyResultDataAccessException e) {
             return null;
         }
@@ -99,17 +106,8 @@ public class UserDbStorage implements UserStorage {
         return jdbc.queryForObject(CHECK_EMAIL, Boolean.class, email);
     }
 
-    private User mapRow(ResultSet resultSet, int rowNum) throws SQLException {
-        long userId = resultSet.getLong("user_id");
-        Set<Long> friends = fs.getFriendsId(userId);
-        User user = User.builder()
-                .id(resultSet.getLong("user_id"))
-                .name(resultSet.getString("name"))
-                .login(resultSet.getString("login"))
-                .email(resultSet.getString("email"))
-                .birthday(resultSet.getDate("birthday").toLocalDate())
-                .build();
+    private void addFriends(User user) {
+        Set<Long> friends = new HashSet<>(jdbc.queryForList(GET_FRIENDS_ID, Long.class, user.getId()));
         user.getFriendsId().addAll(friends);
-        return user;
     }
 }

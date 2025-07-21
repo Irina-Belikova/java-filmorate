@@ -5,37 +5,69 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.dto.FilmDto;
-import ru.yandex.practicum.filmorate.dto.GenreDto;
-import ru.yandex.practicum.filmorate.dto.MpaDto;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.GenreType;
-import ru.yandex.practicum.filmorate.model.Mpa;
-import ru.yandex.practicum.filmorate.storage.genreType.GenreTypeStorage;
-import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
+import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
+import ru.yandex.practicum.filmorate.storage.mappers.GenreTypeRowMapper;
 
 import java.sql.*;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
-@Repository("filmDbStorage")
+@Repository
 @RequiredArgsConstructor
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbc;
-    private final MpaStorage ms;
-    private final GenreTypeStorage gts;
+    private final FilmRowMapper filmRowMapper;
+    private final GenreTypeRowMapper genreMapper;
+    private final Map<Long, List<GenreType>> filmsGenres = new HashMap<>();
 
     private static final String INSERT_FILM_DATA = """
             INSERT INTO films (name, description, release_date, duration, mpa_id)
             VALUES (?, ?, ?, ?, ?)""";
+    private static final String INSERT_GENRES = """
+            MERGE INTO genre
+            USING (VALUES (?, ?)) AS source(film_id, genre_id)
+                         ON genre.film_id = source.film_id AND genre.genre_id = source.genre_id
+                         WHEN NOT MATCHED THEN
+                         INSERT (film_id, genre_id) VALUES (source.film_id, source.genre_id)""";
     private static final String UPDATE_FILM_QUERY = """
             UPDATE films
             SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
             WHERE film_id = ?""";
-    private static final String FIND_FILM_BY_ID = "SELECT * FROM films WHERE film_id = ?";
-    private static final String FIND_ALL_FILMS = "SELECT * FROM films";
+    private static final String FIND_FILM_BY_ID = """
+            SELECT f.*,
+                   m.rating,
+                FROM films AS f
+                LEFT JOIN MPA AS m ON f.mpa_id = m.mpa_id
+                WHERE f.film_id = ?""";
+    private static final String FIND_ALL_FILMS = """
+            SELECT f.*,
+                   m.rating,
+            FROM films AS f
+            LEFT JOIN MPA AS m ON f.mpa_id = m.mpa_id""";
     public static final String DELETE_BY_ID = "DELETE FROM films WHERE film_id = ?";
+    private static final String DELETE_ALL_GENRES = "DELETE FROM genre WHERE film_id = ?";
+    private static final String GET_BEST_FILM_ID = """
+            SELECT film_id
+            FROM film_likes
+            GROUP BY film_id
+            ORDER BY COUNT(user_id) DESC
+            LIMIT ?""";
+    private static final String ADD_LIKE = """
+            INSERT INTO film_likes (film_id, user_id)
+            VALUES (?, ?)""";
+    public static final String REMOVE_LIKE = "DELETE FROM film_likes WHERE film_id = ? AND user_id = ?";
+    public static final String GET_GENRES_BY_FILM_ID = """
+            SELECT gt.genre_id, gt.type
+            FROM genre_type AS gt
+            JOIN genre AS g ON gt.genre_id = g.genre_id
+            WHERE g.film_id = ?""";
+    private static final String ALL_GENRES_AND_FILMS_ID = """
+            SELECT g.film_id, gt.genre_id, gt.type
+            FROM genre_type AS gt
+            JOIN genre AS g ON gt.genre_id = g.genre_id
+            ORDER BY g.film_id""";
 
     @Override
     public Film create(Film film) {
@@ -55,7 +87,7 @@ public class FilmDbStorage implements FilmStorage {
         }
         long id = keyHolder.getKey().longValue();
         film.setId(id);
-        film.getGenres().forEach(genre -> gts.insertGenreData(film.getId(), genre.getId()));
+        film.getGenres().forEach(genre -> insertGenreData(film.getId(), genre.getId()));
         return film;
     }
 
@@ -69,24 +101,25 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getDuration(),
                 newFilm.getMpa().getId(),
                 newFilm.getId());
-        gts.deleteAllGenres(newFilm.getId());
-        List<GenreDto> genres = newFilm.getGenres();
+        jdbc.update(DELETE_ALL_GENRES, newFilm.getId());
+        List<GenreType> genres = newFilm.getGenres();
 
         if (!genres.isEmpty()) {
-            genres.forEach(genre -> gts.insertGenreData(newFilm.getId(), genre.getId()));
-        }
-        gts.deleteAllLikes(newFilm.getId());
-        Set<Long> likeUserId = newFilm.getLikeUserId();
-
-        if (!likeUserId.isEmpty()) {
-            likeUserId.forEach(like -> gts.addLike(newFilm.getId(), like));
+            genres.forEach(genre -> insertGenreData(newFilm.getId(), genre.getId()));
         }
         return newFilm;
     }
 
     @Override
     public List<Film> getAll() {
-        return jdbc.query(FIND_ALL_FILMS, this::mapRow);
+        List<Film> films = jdbc.query(FIND_ALL_FILMS, filmRowMapper);
+        filmsGenres.clear();
+        jdbc.query(ALL_GENRES_AND_FILMS_ID, this::allGenres);
+        films.forEach(film -> {
+            List<GenreType> genres = filmsGenres.get(film.getId());
+            film.setGenres(genres);
+        });
+        return films;
     }
 
     @Override
@@ -97,7 +130,9 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film getFilmById(long id) {
         try {
-            return jdbc.queryForObject(FIND_FILM_BY_ID, this::mapRow, id);
+            Film film = jdbc.queryForObject(FIND_FILM_BY_ID, filmRowMapper, id);
+            addGenres(film);
+            return film;
         } catch (EmptyResultDataAccessException e) {
             return null;
         }
@@ -105,49 +140,59 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getBestFilms(long count) {
-        return gts.getBestFilmId(count).stream()
+        List<Integer> bestFilmId = jdbc.queryForList(GET_BEST_FILM_ID, Integer.class, count);
+
+        return bestFilmId.stream()
                 .map(this::getFilmById)
                 .collect(Collectors.toList());
     }
 
-    public FilmDto getFilmDtoById(long id) {
-        return jdbc.queryForObject(FIND_FILM_BY_ID, this::mapRowDto, id);
+    @Override
+    public void insertGenreData(long filmId, int genreId) {
+        jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(INSERT_GENRES);
+            ps.setLong(1, filmId);
+            ps.setInt(2, genreId);
+            return ps;
+        });
     }
 
-    private FilmDto mapRowDto(ResultSet resultSet, int rowNum) throws SQLException {
-        Mpa mpa = ms.findNameById(resultSet.getInt("mpa_id"));
-        List<GenreType> genres = gts.getGenreTypes(resultSet.getLong("film_id"));
-        return FilmDto.builder()
-                .id(resultSet.getLong("film_id"))
-                .name(resultSet.getString("name"))
-                .description(resultSet.getString("description"))
-                .releaseDate(resultSet.getDate("release_date").toLocalDate())
-                .duration(resultSet.getLong("duration"))
-                .mpa(mpa)
-                .genres(genres)
-                .build();
+    @Override
+    public void addLike(long filmId, long userId) {
+        jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(ADD_LIKE);
+            ps.setLong(1, filmId);
+            ps.setLong(2, userId);
+            return ps;
+        });
     }
 
-    private Film mapRow(ResultSet resultSet, int rowNum) throws SQLException {
-        Film film = Film.builder()
-                .id(resultSet.getLong("film_id"))
-                .name(resultSet.getString("name"))
-                .description(resultSet.getString("description"))
-                .releaseDate(resultSet.getDate("release_date").toLocalDate())
-                .duration(resultSet.getLong("duration"))
-                .build();
+    @Override
+    public int removeLike(long filmId, long userId) {
+        return jdbc.update(REMOVE_LIKE, filmId, userId);
+    }
 
-        MpaDto mpa = new MpaDto();
-        mpa.setId(resultSet.getInt("mpa_id"));
-        film.setMpa(mpa);
-
-        List<Integer> genresId = gts.getGenresByFilmId(film.getId());
-        List<GenreDto> genres = genresId.stream()
-                .map(GenreDto::new)
-                .collect(Collectors.toList());
-
+    private void addGenres(Film film) {
+        List<GenreType> genres = jdbc.query(GET_GENRES_BY_FILM_ID, genreMapper, film.getId());
         film.setGenres(genres);
-        gts.getLikes(film.getId()).forEach(film::addLike);
-        return film;
+    }
+
+    //это вроде как тоже маппер, но я не понимаю пока что, как и его вынести в отдельный класс, чтобы при
+    //запросе всех фильмов информация о списке жанров для всех фильмов за одно обращение к БД
+    //собиралась бы в Мар, и потом в цикле бы из Map доставалась информация к фильму.
+    private Map<Long, List<GenreType>> allGenres(ResultSet rs, int rowNum) throws SQLException {
+        GenreType genre = GenreType.builder()
+                .id(rs.getInt("genre_id"))
+                .name(rs.getString("type")).build();
+        List<GenreType> genres;
+        long id = rs.getLong("film_id");
+        if (filmsGenres.containsKey(id)) {
+            genres = filmsGenres.get(id);
+        } else {
+            genres = new ArrayList<>();
+        }
+        genres.add(genre);
+        filmsGenres.put(id, genres);
+        return filmsGenres;
     }
 }

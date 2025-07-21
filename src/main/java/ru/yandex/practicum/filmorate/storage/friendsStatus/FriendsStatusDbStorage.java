@@ -14,7 +14,6 @@ public class FriendsStatusDbStorage implements FriendsStatusStorage {
 
     private static final String GET_FRIENDS_ID = "SELECT friend_id FROM friends_status WHERE user_id = ?";
     private static final String DELETE_ALL_FRIENDS = "DELETE FROM friends_status WHERE user_id = ?";
-    private static final String INSERT_FRIEND = "INSERT INTO friends_status (user_id, friend_id) VALUES (?, ?)";
 
 
     @Override
@@ -25,10 +24,5 @@ public class FriendsStatusDbStorage implements FriendsStatusStorage {
     @Override
     public void deleteAllFriends(long userId) {
         jdbc.update(DELETE_ALL_FRIENDS, userId);
-    }
-
-    @Override
-    public void addFriendId(long userId, long friendId) {
-        jdbc.update(INSERT_FRIEND, userId, friendId);
     }
 }
