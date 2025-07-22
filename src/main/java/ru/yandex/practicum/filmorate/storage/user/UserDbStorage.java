@@ -10,9 +10,7 @@ import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -21,7 +19,11 @@ public class UserDbStorage implements UserStorage {
     private final UserRowMapper userRowMapper;
 
     private static final String FIND_BY_ID_QUERY = "SELECT * FROM users WHERE user_id = ?";
-    private static final String FIND_ALL_QUERY = "SELECT * FROM users";
+    private static final String FIND_ALL_QUERY = """
+            SELECT u.*, fs.friend_id
+            FROM users AS u
+            LEFT JOIN friends_status AS fs ON u.user_id = fs.user_id
+            ORDER BY u.user_id""";
     private static final String DELETE_BY_ID_QUERY = "DELETE FROM users WHERE user_id = ?";
     private static final String FIND_ALL_EMAILS = "SELECT email FROM users";
     private static final String CHECK_EMAIL = "SELECT EXISTS (SELECT 1 FROM users WHERE email = ?)";
@@ -70,14 +72,23 @@ public class UserDbStorage implements UserStorage {
         return newUser;
     }
 
-    //здесь, я так понимаю, у меня тоже обращение к БД в цикле, не стала пока переделывать, т.к.
-    //принцип бы повторила как в FilmDbStorage и здесь тоже появился бы маппер, который заполняет
-    //Map<Long, Set<Long>>
+    //решила здесь использовать вариант одного запроса, чтобы было 2 способа решения подобных задач
     @Override
     public List<User> getAll() {
-        List<User> users = jdbc.query(FIND_ALL_QUERY, userRowMapper);
-        users.forEach(this::addFriends);
-        return users;
+        Map<Long, User> allUsers = new HashMap<>();
+
+        jdbc.query(FIND_ALL_QUERY, (rs, rowNum) -> {
+            Long id = rs.getLong("user_id");
+            User user = allUsers.get(id);
+            if (user == null) {
+                user = userRowMapper.mapRow(rs, rowNum);
+                allUsers.put(id, user);
+            } else {
+                user.getFriendsId().add(rs.getLong("friend_id"));
+            }
+            return user;
+        });
+        return new ArrayList<>(allUsers.values());
     }
 
     @Override
@@ -89,7 +100,8 @@ public class UserDbStorage implements UserStorage {
     public User getUserById(long id) {
         try {
             User user = jdbc.queryForObject(FIND_BY_ID_QUERY, userRowMapper, id);
-            addFriends(user);
+            Set<Long> friends = new HashSet<>(jdbc.queryForList(GET_FRIENDS_ID, Long.class, id));
+                user.getFriendsId().addAll(friends);
             return user;
         } catch (EmptyResultDataAccessException e) {
             return null;
@@ -104,10 +116,5 @@ public class UserDbStorage implements UserStorage {
     @Override
     public boolean checkEmail(String email) {
         return jdbc.queryForObject(CHECK_EMAIL, Boolean.class, email);
-    }
-
-    private void addFriends(User user) {
-        Set<Long> friends = new HashSet<>(jdbc.queryForList(GET_FRIENDS_ID, Long.class, user.getId()));
-        user.getFriendsId().addAll(friends);
     }
 }

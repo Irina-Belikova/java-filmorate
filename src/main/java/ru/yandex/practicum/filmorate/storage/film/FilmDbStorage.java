@@ -20,7 +20,6 @@ public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbc;
     private final FilmRowMapper filmRowMapper;
     private final GenreTypeRowMapper genreMapper;
-    private final Map<Long, List<GenreType>> filmsGenres = new HashMap<>();
 
     private static final String INSERT_FILM_DATA = """
             INSERT INTO films (name, description, release_date, duration, mpa_id)
@@ -113,11 +112,28 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getAll() {
         List<Film> films = jdbc.query(FIND_ALL_FILMS, filmRowMapper);
-        filmsGenres.clear();
-        jdbc.query(ALL_GENRES_AND_FILMS_ID, this::allGenres);
+        Map<Long, List<GenreType>> allGenres = new HashMap<>();
+
+        jdbc.query(ALL_GENRES_AND_FILMS_ID, (rs, rowNuw) -> {
+            GenreType genre = GenreType.builder()
+                    .id(rs.getInt("genre_id"))
+                    .name(rs.getString("type"))
+                    .build();
+            Long id = rs.getLong("film_id");
+            if (allGenres.containsKey(id)) {
+                allGenres.get(id).add(genre);
+            } else {
+                List<GenreType> genres = new ArrayList<>();
+                genres.add(genre);
+                allGenres.put(id, genres);
+            }
+            return genre;
+        });
+
         films.forEach(film -> {
-            List<GenreType> genres = filmsGenres.get(film.getId());
-            film.setGenres(genres);
+            if (allGenres.containsKey(film.getId())) {
+                film.setGenres(allGenres.get(film.getId()));
+            }
         });
         return films;
     }
@@ -131,7 +147,10 @@ public class FilmDbStorage implements FilmStorage {
     public Film getFilmById(long id) {
         try {
             Film film = jdbc.queryForObject(FIND_FILM_BY_ID, filmRowMapper, id);
-            addGenres(film);
+            List<GenreType> genres = jdbc.query(GET_GENRES_BY_FILM_ID, genreMapper, id);
+            if (!genres.isEmpty()) {
+                film.setGenres(genres);
+            }
             return film;
         } catch (EmptyResultDataAccessException e) {
             return null;
@@ -170,29 +189,5 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public int removeLike(long filmId, long userId) {
         return jdbc.update(REMOVE_LIKE, filmId, userId);
-    }
-
-    private void addGenres(Film film) {
-        List<GenreType> genres = jdbc.query(GET_GENRES_BY_FILM_ID, genreMapper, film.getId());
-        film.setGenres(genres);
-    }
-
-    //это вроде как тоже маппер, но я не понимаю пока что, как и его вынести в отдельный класс, чтобы при
-    //запросе всех фильмов информация о списке жанров для всех фильмов за одно обращение к БД
-    //собиралась бы в Мар, и потом в цикле бы из Map доставалась информация к фильму.
-    private Map<Long, List<GenreType>> allGenres(ResultSet rs, int rowNum) throws SQLException {
-        GenreType genre = GenreType.builder()
-                .id(rs.getInt("genre_id"))
-                .name(rs.getString("type")).build();
-        List<GenreType> genres;
-        long id = rs.getLong("film_id");
-        if (filmsGenres.containsKey(id)) {
-            genres = filmsGenres.get(id);
-        } else {
-            genres = new ArrayList<>();
-        }
-        genres.add(genre);
-        filmsGenres.put(id, genres);
-        return filmsGenres;
     }
 }
