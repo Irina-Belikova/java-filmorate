@@ -1,14 +1,13 @@
 package ru.yandex.practicum.filmorate.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -30,18 +29,11 @@ public class Film {
     @Positive
     private Long duration;
 
-    @JsonIgnore
-    private final Set<Long> likeUserId = new HashSet<>();
+    private List<GenreType> genres = new ArrayList<>();
+
+    private Mpa mpa;
 
     public boolean validDate() {
         return releaseDate.isAfter(MOVIE_BIRTHDAY);
-    }
-
-    public boolean addLike(long userId) {
-        return likeUserId.add(userId);
-    }
-
-    public boolean deleteLike(long userId) {
-        return likeUserId.remove(userId);
     }
 }

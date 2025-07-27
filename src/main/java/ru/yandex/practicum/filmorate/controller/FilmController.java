@@ -28,7 +28,6 @@ public class FilmController {
     public Film createFilm(@Valid @RequestBody Film film) {
         log.info("Получен запрос на создание фильма: {}", film);
         filmService.validateFilmForCreate(film);
-
         return filmService.create(film);
     }
 
@@ -49,6 +48,13 @@ public class FilmController {
         filmService.checkFilmExists(id);
         filmService.deleteById(id);
         return String.format("Фильм с id - %d успешно удалён.", id);
+    }
+
+    @GetMapping("/{id}")
+    public Film getFilmById(@PathVariable @Positive(message = "Некорректный id фильма.") long id) {
+        log.info("Получен запрос на поиск фильма по id: {}", id);
+        filmService.checkFilmExists(id);
+        return filmService.getFilmById(id);
     }
 
     @PutMapping("/{id}/like/{userId}")

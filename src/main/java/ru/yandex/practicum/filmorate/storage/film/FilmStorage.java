@@ -17,4 +17,10 @@ public interface FilmStorage {
     Film getFilmById(long id);
 
     List<Film> getBestFilms(long count);
+
+    void insertGenreData(long filmId, int genreId);
+
+    void addLike(long filmId, long userId);
+
+    int removeLike(long filmId, long userId);
 }

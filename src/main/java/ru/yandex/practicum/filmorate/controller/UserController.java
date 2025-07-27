@@ -51,7 +51,7 @@ public class UserController {
         return String.format("Данные пользователя с id - %d успешно удалены.", id);
     }
 
-    @PutMapping("{id}/friends/{friendId}")
+    @PutMapping("/{id}/friends/{friendId}")
     public User addFriend(@PathVariable @Positive(message = "Некорректный id первого пользователя.") Long id,
                           @PathVariable @Positive(message = "Некорректный id второго пользователя.") Long friendId) {
         log.info("Получен запрос на добавление в друзья пользователей с id: {} и {}", id, friendId);
@@ -72,7 +72,6 @@ public class UserController {
     public List<User> getAllFriends(@PathVariable @Positive(message = "Некорректный id пользователя.") Long id) {
         log.info("Получен запрос на получение списка всех друзей у пользователя {}", id);
         userService.checkUserExists(id);
-        log.info("Получаемый список друзей {}", userService.getAllFriends(id));
         return userService.getAllFriends(id);
     }
 

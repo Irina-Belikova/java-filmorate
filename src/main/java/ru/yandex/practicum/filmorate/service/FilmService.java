@@ -1,14 +1,19 @@
 package ru.yandex.practicum.filmorate.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ServiceErrorException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.GenreType;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.genreType.GenreTypeStorage;
+import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
@@ -18,11 +23,16 @@ public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
+    private final MpaStorage mpaStorage;
+    private final GenreTypeStorage genreStorage;
 
     @Autowired
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
+    public FilmService(FilmStorage filmStorage, UserStorage userStorage,
+                       MpaStorage mpaStorage, GenreTypeStorage genreStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
+        this.mpaStorage = mpaStorage;
+        this.genreStorage = genreStorage;
     }
 
     public Film create(Film film) {
@@ -45,32 +55,36 @@ public class FilmService {
         return filmStorage.getAll();
     }
 
+    public Film getFilmById(long id) {
+        return filmStorage.getFilmById(id);
+    }
+
     public void deleteById(long id) {
         filmStorage.deleteById(id);
     }
 
     public Film addNewLike(long id, long userId) {
-        Film film = filmStorage.getFilmById(id);
-
-        if (!film.addLike(userId)) {
+        try {
+            filmStorage.addLike(id, userId);
+        } catch (DataIntegrityViolationException e) {
             throw new DuplicatedDataException("Данный пользователь уже поставил лайк этому фильму.");
         }
-        return filmStorage.update(film);
+        return filmStorage.getFilmById(id);
     }
 
     public void removeLike(long id, long userId) {
-        Film film = filmStorage.getFilmById(id);
-
-        if (!film.deleteLike(userId)) {
+        if (filmStorage.removeLike(id, userId) == 0) {
             throw new ValidationException("Данный пользователь не ставил лайк этому фильму.");
         }
-        filmStorage.update(film);
     }
 
     public List<Film> getBestFilms(long count) {
         return filmStorage.getBestFilms(count);
     }
 
+    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
+    //эндпоинтов и чтобы там не пришлось создавать поле userService; сделала методы публичными и в контроллере
+    //через filmService.метод() происходит вся валидация входящих данных
     public void validateFilmForCreate(Film film) {
         if (film.getId() != null) {
             if (filmStorage.getFilmById(film.getId()) != null) {
@@ -80,11 +94,9 @@ public class FilmService {
         if (!film.validDate()) {
             throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
         }
+        checkMpaAndGenre(film);
     }
 
-    //Не стала эти методы валидации переносить в контроллер, чтобы там были только методы для обработки
-    //эндпоинтов и чтобы там не пришлось создавать поле userService; сделала методы публичными и в контроллере
-    //через filmService.метод() происходит вся валидация входящих данных
     public void validateFilmForUpdate(Film newFilm) {
         if (newFilm.getId() == null) {
             throw new ValidationException("Id фильма должен быть указан.");
@@ -95,6 +107,7 @@ public class FilmService {
         if (!newFilm.validDate()) {
             throw new ValidationException("Дата создания фильма должна быть позже 28 декабря 1895 г.");
         }
+        checkMpaAndGenre(newFilm);
     }
 
     public void checkFilmExists(long id) {
@@ -111,6 +124,20 @@ public class FilmService {
         }
         if (user == null) {
             throw new NotFoundException("Пользователя с таким id нет.");
+        }
+    }
+
+    private void checkMpaAndGenre(Film film) {
+        try {
+            mpaStorage.findNameById(film.getMpa().getId());
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Id возрастного рейтинга должен быть в диапазоне от 1 до 5.");
+        }
+        for (GenreType genre : film.getGenres()) {
+            List<GenreType> allGenres = genreStorage.getAll();
+            if (!allGenres.contains(genre)) {
+                throw new NotFoundException("Id жанра должен быть в диапазоне от 1 до 6.");
+            }
         }
     }
 }
